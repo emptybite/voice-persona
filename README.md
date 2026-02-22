@@ -1,4 +1,4 @@
-# Voice Chatbot Orchestrator (LM Studio + Whisper + ElevenLabs)
+# Voice Chatbot (LM Studio + Whisper + ElevenLabs)
 
 Backend + built-in web UI for persona chat, STT, and TTS.
 
