@@ -22,8 +22,9 @@ class HttpServiceClient:
             resp.raise_for_status()
             return resp.json()
 
-    async def post_bytes(self, endpoint: str, payload: dict[str, Any]) -> bytes:
+    async def post_bytes(self, endpoint: str, payload: dict[str, Any]) -> tuple[bytes, str]:
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             resp = await client.post(f"{self.base_url}{endpoint}", json=payload)
             resp.raise_for_status()
-            return resp.content
+            content_type = resp.headers.get("content-type", "")
+            return resp.content, content_type

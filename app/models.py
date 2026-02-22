@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 class VoiceConfig(BaseModel):
     voice: str = Field(default="default")
     tone_prompt: str = Field(default="Speak clearly and naturally.")
+    language: str = Field(default="Auto")
     speed: float = Field(default=1.0, ge=0.5, le=2.0)
 
 
@@ -34,6 +35,7 @@ class ChatResponse(BaseModel):
     session_id: str
     profile_id: str
     assistant_message: str
+    usage: dict[str, int] | None = None
 
 
 class MemoryMessage(BaseModel):
@@ -56,7 +58,9 @@ class TranscribeResponse(BaseModel):
 class SpeakRequest(BaseModel):
     profile_id: str
     text: str
-    format: Literal["mp3", "wav"] = "mp3"
+    format: Literal["mp3", "wav"] = "wav"
+    tts_model: str | None = None
+    voice_id: str | None = None
 
 
 class EndpointHealth(BaseModel):
@@ -69,4 +73,46 @@ class EndpointHealth(BaseModel):
 class HealthResponse(BaseModel):
     lm_studio: EndpointHealth
     whisper: EndpointHealth
-    qwen_tts: EndpointHealth
+    tts: EndpointHealth
+
+
+class SessionSummary(BaseModel):
+    session_id: str
+    message_count: int
+    updated_at: datetime | None = None
+
+
+class VoiceItem(BaseModel):
+    voice_id: str
+    name: str
+
+
+class VoiceCatalogResponse(BaseModel):
+    mode: Literal["remote"]
+    voices: list[str]
+    voice_items: list[VoiceItem] = Field(default_factory=list)
+    default_voice: str | None = None
+    tts_model: str | None = None
+    supports_tone_prompt: bool = True
+    supports_speed: bool = True
+
+
+class TtsModelCatalogResponse(BaseModel):
+    mode: Literal["remote"]
+    default_model: str | None = None
+    models: list[str] = Field(default_factory=list)
+
+
+class VoiceDesignRequest(BaseModel):
+    text: str = Field(min_length=100)
+    voice_description: str | None = None
+    gender: Literal["female", "male"] = "female"
+    accent: str = "american"
+    age: Literal["young", "middle_aged", "old"] = "middle_aged"
+    accent_strength: float = Field(default=0.35, ge=0.0, le=2.0)
+
+
+class VoiceDesignCreateRequest(BaseModel):
+    voice_name: str
+    voice_description: str
+    generated_voice_id: str
