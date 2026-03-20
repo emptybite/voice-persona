@@ -4,6 +4,9 @@ A small FastAPI app for chatting with custom personas and giving them voices.
 
 ## Quick Demo
 
+<img width="1919" height="990" alt="image" src="https://github.com/user-attachments/assets/40fb41f3-f4b6-4a50-bb04-5060f57cad43" />
+
+
 You can:
 
 - make multiple personas with their own name, avatar, voice, and personality
