@@ -1,0 +1,33 @@
+﻿# Environment
+.env
+.env.*
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*.pyo
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Runtime data and generated audio
+/data/
+*.wav
+*.mp3
+
+# Frontend build artifacts
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.vite/
+
+# Editor/IDE
+.vscode/
+.idea/
+
+# OS/log noise
+.DS_Store
+Thumbs.db
+*.log
