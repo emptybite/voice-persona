@@ -35,6 +35,7 @@
     chatLog: document.getElementById("chat-log"),
     activeProfileName: document.getElementById("active-profile-name"),
     activeSessionTitle: document.getElementById("active-session-title"),
+    renameSession: document.getElementById("rename-session"),
     activeProfileMeta: document.getElementById("active-profile-meta"),
     activeVoiceMeta: document.getElementById("active-voice-meta"),
     activeModelChip: document.getElementById("active-model-chip"),
@@ -332,11 +333,17 @@
   function updateApiKeyVisibility() {
     refs.elevenLabsApiKey.type = state.elevenLabsApiKeyVisible ? "text" : "password";
     refs.elevenLabsApiKeyToggleIcon.textContent = state.elevenLabsApiKeyVisible ? "visibility_off" : "visibility";
+    refs.elevenLabsApiKeyToggle.title = refs.elevenLabsApiKey.value
+      ? "Show or hide the key you are typing"
+      : "Reveal works for newly typed keys";
   }
 
   function updateLlmApiKeyVisibility() {
     refs.llmApiKey.type = state.llmApiKeyVisible ? "text" : "password";
     refs.llmApiKeyToggleIcon.textContent = state.llmApiKeyVisible ? "visibility_off" : "visibility";
+    refs.llmApiKeyToggle.title = refs.llmApiKey.value
+      ? "Show or hide the key you are typing"
+      : "Reveal works for newly typed keys";
   }
 
   function setApiKeyStatus(message, tone = "neutral") {
@@ -358,10 +365,11 @@
   async function loadLlmApiKeyStatus() {
     const payload = await api("/v1/runtime/llm-api-key");
     state.llmApiKeyMasked = payload.masked || "";
-    refs.llmApiKey.value = payload.masked || "";
+    refs.llmApiKey.value = "";
+    refs.llmApiKey.placeholder = payload.masked || "Enter LLM API key";
     setLlmApiKeyStatus(
       payload.configured
-        ? "LLM key is active. Enter a new one to override it, or leave blank and save to use the backend default."
+        ? `LLM key is active${payload.masked ? ` (${payload.masked})` : ""}. Enter a new one to override it, or leave blank and save to use the backend default.`
         : "LLM key not configured yet.",
       payload.configured ? "success" : "neutral"
     );
@@ -369,18 +377,14 @@
 
   async function saveLlmApiKey() {
     const value = (refs.llmApiKey.value || "").trim();
-    if (state.llmApiKeyMasked && value === state.llmApiKeyMasked) {
-      setLlmApiKeyStatus("API key unchanged.", "success");
-      return;
-    }
-
     setLlmApiKeyStatus(value ? "Saving API key..." : "Clearing custom override...");
     const payload = await api("/v1/runtime/llm-api-key", {
       method: "POST",
       body: JSON.stringify({ api_key: value }),
     });
     state.llmApiKeyMasked = payload.masked || "";
-    refs.llmApiKey.value = payload.masked || "";
+    refs.llmApiKey.value = "";
+    refs.llmApiKey.placeholder = payload.masked || "Enter LLM API key";
     state.llmApiKeyVisible = false;
     updateLlmApiKeyVisibility();
     setLlmApiKeyStatus(
@@ -396,9 +400,12 @@
   async function loadElevenLabsApiKeyStatus() {
     const payload = await api("/v1/runtime/elevenlabs-api-key");
     state.elevenLabsApiKeyMasked = payload.masked || "";
-    refs.elevenLabsApiKey.value = payload.masked || "";
+    refs.elevenLabsApiKey.value = "";
+    refs.elevenLabsApiKey.placeholder = payload.masked || "Enter ElevenLabs API key";
     setApiKeyStatus(
-      payload.configured ? "Provider key is configured. Enter a new one to replace it." : "Provider key not configured yet.",
+      payload.configured
+        ? `Provider key is configured${payload.masked ? ` (${payload.masked})` : ""}. Enter a new one to replace it.`
+        : "Provider key not configured yet.",
       payload.configured ? "success" : "neutral"
     );
   }
@@ -409,10 +416,6 @@
       setApiKeyStatus("Enter an ElevenLabs API key first.", "error");
       return;
     }
-    if (state.elevenLabsApiKeyMasked && value === state.elevenLabsApiKeyMasked) {
-      setApiKeyStatus("API key unchanged.", "success");
-      return;
-    }
 
     setApiKeyStatus("Saving API key...");
     const payload = await api("/v1/runtime/elevenlabs-api-key", {
@@ -420,7 +423,8 @@
       body: JSON.stringify({ api_key: value }),
     });
     state.elevenLabsApiKeyMasked = payload.masked || "";
-    refs.elevenLabsApiKey.value = payload.masked || "";
+    refs.elevenLabsApiKey.value = "";
+    refs.elevenLabsApiKey.placeholder = payload.masked || "Enter ElevenLabs API key";
     state.elevenLabsApiKeyVisible = false;
     updateApiKeyVisibility();
     setApiKeyStatus("API key saved.", "success");
@@ -769,6 +773,36 @@
     }
     refs.userMessage.focus();
     setStatus("Conversation deleted.", "success");
+  }
+
+  async function renameCurrentSession() {
+    if (!state.currentProfile || !state.currentSessionId || state.currentSessionDraft) {
+      setStatus("Send a message first, then you can rename the conversation.");
+      return;
+    }
+
+    const current = currentSessionSummary();
+    const existingTitle = current?.title || "Conversation";
+    const nextTitle = window.prompt("Rename conversation", existingTitle);
+    if (nextTitle === null) {
+      return;
+    }
+    const title = nextTitle.trim();
+    if (!title) {
+      setStatus("Conversation title cannot be empty.", "error");
+      return;
+    }
+
+    await api(
+      `/v1/profiles/${encodeURIComponent(state.currentProfile.id)}/sessions/${encodeURIComponent(state.currentSessionId)}/rename`,
+      {
+        method: "POST",
+        body: JSON.stringify({ title }),
+      }
+    );
+    await refreshSessions();
+    updateHeaderMeta();
+    setStatus("Conversation renamed.", "success");
   }
 
   function profilePayload() {
@@ -1590,6 +1624,10 @@
 
     refs.deleteSession.addEventListener("click", () => {
       deleteCurrentSession().catch((error) => setStatus(`Could not delete conversation: ${error.message}`, "error"));
+    });
+
+    refs.renameSession.addEventListener("click", () => {
+      renameCurrentSession().catch((error) => setStatus(`Could not rename conversation: ${error.message}`, "error"));
     });
 
     refs.chatLog.addEventListener("click", (event) => {

@@ -134,6 +134,10 @@ class ApiKeyUpdateRequest(BaseModel):
     api_key: str
 
 
+class SessionRenameRequest(BaseModel):
+    title: str
+
+
 class ApiKeyStatusResponse(BaseModel):
     configured: bool
     masked: str | None = None

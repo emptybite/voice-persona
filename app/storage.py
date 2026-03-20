@@ -45,15 +45,18 @@ class JsonStore:
     def _read_profile_memory(self, profile_id: str) -> dict[str, Any]:
         path = self._memory_file_path(profile_id)
         if not path.exists():
-            return {"profile_id": profile_id, "sessions": {}}
+            return {"profile_id": profile_id, "sessions": {}, "session_meta": {}}
         with path.open("r", encoding="utf-8-sig") as f:
             raw = json.load(f)
         if not isinstance(raw, dict):
-            return {"profile_id": profile_id, "sessions": {}}
+            return {"profile_id": profile_id, "sessions": {}, "session_meta": {}}
         sessions = raw.get("sessions")
         if not isinstance(sessions, dict):
             sessions = {}
-        return {"profile_id": profile_id, "sessions": sessions}
+        session_meta = raw.get("session_meta")
+        if not isinstance(session_meta, dict):
+            session_meta = {}
+        return {"profile_id": profile_id, "sessions": sessions, "session_meta": session_meta}
 
     def _write_profile_memory(self, profile_id: str, data: dict[str, Any]) -> None:
         path = self._memory_file_path(profile_id)
@@ -183,6 +186,7 @@ class JsonStore:
             self._migrate_legacy_sessions(raw, profile_id)
             profile_memory = self._read_profile_memory(profile_id)
             sessions = profile_memory["sessions"]
+            session_meta = profile_memory.get("session_meta", {})
 
         out: list[dict[str, Any]] = []
         for session_id, history in sessions.items():
@@ -190,6 +194,11 @@ class JsonStore:
                 continue
             updated_at = None
             title, preview = self._session_title_preview(history)
+            meta = session_meta.get(session_id) if isinstance(session_meta, dict) else None
+            if isinstance(meta, dict):
+                custom_title = str(meta.get("title") or "").strip()
+                if custom_title:
+                    title = self._truncate(custom_title, 36)
             if history:
                 last = history[-1]
                 if isinstance(last, dict):
@@ -224,6 +233,29 @@ class JsonStore:
             if session_id not in sessions:
                 return False
             sessions.pop(session_id, None)
+            session_meta = profile_memory.get("session_meta")
+            if isinstance(session_meta, dict):
+                session_meta.pop(session_id, None)
+            self._write_profile_memory(profile_id, profile_memory)
+            return True
+
+    def rename_session(self, profile_id: str, session_id: str, title: str) -> bool:
+        with self._lock:
+            raw = self._read()
+            self._migrate_legacy_sessions(raw, profile_id)
+            profile_memory = self._read_profile_memory(profile_id)
+            sessions = profile_memory["sessions"]
+            if session_id not in sessions:
+                return False
+            session_meta = profile_memory.setdefault("session_meta", {})
+            if not isinstance(session_meta, dict):
+                session_meta = {}
+                profile_memory["session_meta"] = session_meta
+            meta = session_meta.setdefault(session_id, {})
+            if not isinstance(meta, dict):
+                meta = {}
+                session_meta[session_id] = meta
+            meta["title"] = title
             self._write_profile_memory(profile_id, profile_memory)
             return True
 

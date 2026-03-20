@@ -30,6 +30,7 @@ from .models import (
     RuntimeAudioInfo,
     RuntimeCatalogResponse,
     RuntimeModelInfo,
+    SessionRenameRequest,
     SessionSummary,
     SpeakRequest,
     TranscribeResponse,
@@ -505,6 +506,20 @@ async def delete_session(profile_id: str, session_id: str) -> dict[str, object]:
     if not removed:
         raise HTTPException(status_code=404, detail="session not found")
     return {"ok": True, "profile_id": profile_id, "session_id": session_id}
+
+
+@app.post("/v1/profiles/{profile_id}/sessions/{session_id}/rename")
+async def rename_session(profile_id: str, session_id: str, req: SessionRenameRequest) -> dict[str, object]:
+    profile = store.get_profile(profile_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="profile not found")
+    title = (req.title or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="title cannot be empty")
+    renamed = store.rename_session(profile_id, session_id, title)
+    if not renamed:
+        raise HTTPException(status_code=404, detail="session not found")
+    return {"ok": True, "profile_id": profile_id, "session_id": session_id, "title": title}
 
 
 @app.post("/v1/profiles/cleanup")
